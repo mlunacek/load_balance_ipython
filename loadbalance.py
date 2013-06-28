@@ -56,6 +56,7 @@ c.EngineFactory.ip = '*'
 ''')
 
 def execute_command(cmd):
+    """Command that the map function calls"""
     
     import os, subprocess, time, shutil, stat, sys, shlex, socket
     
@@ -69,8 +70,7 @@ def execute_command(cmd):
 class LoadBalance:
     
     def __init__(self, ppn=12, loglevel=logging.DEBUG):
-        
-        #print args, kwargs
+        """Creates a profile, logger, starts engines and controllers"""
         self.directory = os.getcwd()
         self.logger = logging.getLogger('LoadBalance')
         self.logger.setLevel(loglevel)
@@ -93,7 +93,8 @@ class LoadBalance:
         self.start_engines()
     
     def ipengine_path(self):    
-        #Find the full path for ipengine
+        """Find the full path for ipengine"""
+
         p = subprocess.Popen(['which','ipengine'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res = p.stdout.readlines()
         if len(res) == 0: 
@@ -102,9 +103,9 @@ class LoadBalance:
         
         self.ipengine = res[0].strip('\n')
         self.logger.debug('ipengine', self.ipengine)
-        
-    # Read the nodes from the PBS_NODEFILE
+
     def pbs_nodes(self):
+        """Returns an array of nodes from the PBS_NODEFILE"""
         
         nodes = []
         try:
@@ -121,8 +122,8 @@ class LoadBalance:
         
         return nodes        
             
-    #Create the profile 
     def create_profile(self):
+        """Calls the ipython profile create command"""
         cmd = subprocess.Popen(['ipython','profile','create','--parallel','--profile='+self.profile], 
                                 stdout=subprocess.PIPE, 
                                 stderr=subprocess.PIPE, 
@@ -140,8 +141,8 @@ class LoadBalance:
         with open(os.path.join(self.profile_directory,'ipengine_config.py'),'w') as f:
             f.write(tmp)    
     
-    #Start the controller        
     def start_controller(self):
+        """Starts the ipcontroller"""
         cmd = ['ipcontroller']
         cmd.append('--profile='+self.profile)
         cmd.append('--log-to-file')
@@ -156,7 +157,8 @@ class LoadBalance:
         self.wait_for_controller()
         self.logger.debug('controller has started\n')
         
-    def wait_for_controller(self):     
+    def wait_for_controller(self):   
+        """Loops until the controller is ready"""  
         tic = time.time()
         while True:
             if  time.time() - tic > 30:
@@ -173,16 +175,15 @@ class LoadBalance:
                 time.sleep(2)
             except:
                 time.sleep(2)
-                          
-    #Start the engines                                    
+                                  
     def start_engines(self):
+        """Starts and waits for the engines"""
         self.engines = []
         self.hostname = socket.gethostname()
         for node in self.node_list:
             for i in xrange(self.ppn):
                 if self.hostname != node:
                     cmd = ['ssh']
-                    #md.append('-x')
                     cmd.append(node)
                     cmd.append(self.ipengine)
                 else:
@@ -202,6 +203,7 @@ class LoadBalance:
         self.wait_for_engines()
     
     def wait_for_engines(self):
+        """Loops until engies have started"""
         tic = time.time()
         while True and time.time() - tic < 120:
             try:
@@ -220,6 +222,7 @@ class LoadBalance:
                 time.sleep(2)
     
     def remove_profile(self):
+        """Removes the profile directory"""
         count = 0
         self.logger.debug('Attempting to remove profile')
         while True and count < 20:
@@ -243,7 +246,7 @@ class LoadBalance:
         self.remove_profile()
        
     def run_commands(self, commands):
-        
+        """Maps the commands to the execute_command function, in parallel"""
         self.logger.debug('running')
         rc = parallel.Client(profile=self.profile) 
         lview = rc.load_balanced_view() 
