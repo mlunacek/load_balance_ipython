@@ -79,7 +79,7 @@ class LoadBalance:
         formatter = logging.Formatter('%(asctime)s:   %(message)s', datefmt='%I:%M:%S %p')
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
-        self.ppn = ppn
+        self.set_ppn(ppn)
         self.profile = 'temp_' + str(uuid.uuid1())
         #self.profile = 'testing'
         self.ipengine_path()
@@ -87,11 +87,20 @@ class LoadBalance:
         self.logger.debug('starting load balance')
         self.logger.debug(self.directory)
         self.node_list = self.pbs_nodes()
-        self.logger.debug(self.node_list)
+        #self.logger.debug(self.node_list)
         self.create_profile()
         self.start_controller()
         self.start_engines()
     
+    def set_ppn(self,ppn):
+        """Environmental variable override"""
+        try:
+            ppn = os.environ['PPN']
+        except KeyError, e:
+            pass
+
+        self.ppn = ppn
+
     def ipengine_path(self):    
         """Find the full path for ipengine"""
 
@@ -102,11 +111,9 @@ class LoadBalance:
             exit(1)
         
         self.ipengine = res[0].strip('\n')
-        self.logger.debug('ipengine', self.ipengine)
 
     def pbs_nodes(self):
         """Returns an array of nodes from the PBS_NODEFILE"""
-        
         nodes = []
         try:
             filename = os.environ['PBS_NODEFILE']
@@ -238,12 +245,14 @@ class LoadBalance:
         return False
                 
     def __del__(self):
+        try:
+            for engine in self.engines:
+                os.killpg( engine.pid, signal.SIGINT)
 
-        for engine in self.engines:
-            os.killpg( engine.pid, signal.SIGINT)
-
-        os.killpg( self.controller.pid, signal.SIGINT)
-        self.remove_profile()
+            os.killpg( self.controller.pid, signal.SIGINT)
+            self.remove_profile()
+        except AttributeError:
+            pass
        
     def run_commands(self, commands):
         """Maps the commands to the execute_command function, in parallel"""
