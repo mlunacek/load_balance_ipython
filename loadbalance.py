@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 '''
-An abstraction of the IPython Parallel task interface
+An abstraction of the IPython Parallel task interface.
+
+Given a PBS_NODEFILE, this class launches the controller and engines via ssh
+using a temporary profile.
 
 Author: Monte Lunacek, monte.lunacek@colorado.edu
 
