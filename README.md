@@ -1,5 +1,4 @@
 # load_balance_ipython
-====================
 
 An abstraction of the IPython Parallel task interface
 
