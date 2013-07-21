@@ -82,7 +82,7 @@ class LoadBalance:
         except KeyError, e:
             pass
 
-        self.ppn = ppn
+        self.ppn = int(ppn)
 
     def ipengine_path(self):    
         """Find the full path for ipengine"""
