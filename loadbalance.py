@@ -9,7 +9,6 @@ Author: Monte Lunacek, monte.lunacek@colorado.edu
 
 '''
 import os
-import sys
 import subprocess
 import time
 import socket
@@ -41,7 +40,7 @@ c.EngineFactory.ip = '*'
 def execute_command(cmd):
     """Command that the map function calls"""
     
-    import os, subprocess, time, shutil, stat, sys, shlex, socket
+    import subprocess, socket
     
     pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     pro.wait()
@@ -63,6 +62,7 @@ class LoadBalance:
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
         self.set_ppn(ppn)
+
         self.profile = 'temp_' + str(uuid.uuid1())
         #self.profile = 'testing'
         self.ipengine_path()
@@ -74,6 +74,7 @@ class LoadBalance:
         self.create_profile()
         self.start_controller()
         self.start_engines()
+        self.create_view()
     
     def set_ppn(self,ppn):
         """Environmental variable override"""
@@ -236,7 +237,33 @@ class LoadBalance:
             self.remove_profile()
         except AttributeError:
             pass
-       
+    
+    def create_view(self):
+        """Creates the client and the load balance view"""
+        self.rc = parallel.Client(profile=self.profile) 
+        self.lview = self.rc.load_balanced_view() 
+        self.lview.retries = 1
+        self.logger.debug('Number of engines ' + str(len(self.rc)))
+
+    def set_retries(self, num_retries):
+        self.lview.retries = num_retries
+
+    def map(self, input_func, input_list):
+
+        number_of_jobs = len(input_list)
+        self.logger.debug(number_of_jobs)
+
+        tic = time.time()
+        ar = self.lview.map(execute_command, input_list)
+        #ar.wait()
+        for i,r in enumerate(ar):
+             self.logger.debug("task: %i finished on %s, %.3f percent finished at time %.3f "%(
+                                i, r['host'], 100*((i+1)/float(number_of_jobs)), time.time()-tic ))
+
+        self.logger.debug('done')
+        return ar
+
+
     def run_commands(self, commands):
         """Maps the commands to the execute_command function, in parallel"""
         self.logger.debug('running')
